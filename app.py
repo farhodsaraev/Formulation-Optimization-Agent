@@ -1,5 +1,5 @@
 # ==============================================================================
-# Final Application: Formulation Optimization Agent (Final with Renderer)
+# Phase 2: Advanced Functionality & User Experience
 # ==============================================================================
 
 import streamlit as st
@@ -22,13 +22,9 @@ except Exception:
     st.error("Groq API key not found. Please add it to your Streamlit Secrets.")
     st.stop()
 
-
 # --- Caching the Model and Preprocessors ---
 @st.cache_resource
 def load_artifacts():
-    """
-    Loads the saved machine learning model, TF-IDF vectorizer, and label encoder.
-    """
     try:
         model = joblib.load('random_forest_model.joblib')
         vectorizer = joblib.load('tfidf_vectorizer.joblib')
@@ -41,79 +37,105 @@ def load_artifacts():
 # Load the artifacts
 rf_model, tfidf_vectorizer, label_encoder = load_artifacts()
 
-# --- Header and Title ---
+# --- UI: Sidebar for User Inputs ---
+st.sidebar.title("🔬 R&D Parameters")
+st.sidebar.write("Define your product concept here.")
+
+# Get a list of our trained categories for the dropdown
+product_categories = ["Auto-detect"] + sorted(list(label_encoder.classes_)) if label_encoder else ["Auto-detect"]
+
+# Input widgets in the sidebar
+product_type = st.sidebar.selectbox(
+    "Select Product Type",
+    options=product_categories,
+    help="Choose a product category or let the AI detect it from your ingredients."
+)
+
+price_point = st.sidebar.selectbox(
+    "Target Price Point",
+    options=["Mass-market", "Prestige", "Luxury"],
+    help="This will influence the AI's choice of supporting ingredients."
+)
+
+constraints = st.sidebar.multiselect(
+    "Formulation Constraints",
+    options=["Silicone-free", "Paraben-free", "Sulfate-free", "Fragrance-free", "Vegan", "Clean Beauty Compliant"],
+    help="Select any 'free-of' claims the final formulation should adhere to."
+)
+
+st.sidebar.markdown("---")
+ingredients_input = st.sidebar.text_area(
+    "Enter Key Ingredients",
+    height=200,
+    placeholder="e.g., Water, Glycerin, Hyaluronic Acid, Squalane, Niacinamide...",
+    help="List the core ingredients you want to feature in the formulation."
+)
+
+submit_button = st.sidebar.button(label='✨ Generate Formulation')
+
+# --- Main App Interface ---
 st.title("🧪 Formulation Optimization Agent")
-st.write("""
-Welcome! This tool helps cosmetic chemists brainstorm new formulations. 
-Start by providing a list of ingredients, and our AI will predict the product category 
-and then generate a concept formulation.
-""")
+st.write("Your AI partner for creating innovative cosmetic formulations. Define your parameters in the sidebar and click generate.")
 st.markdown("---")
 
-# --- Prediction and Formulation Interface ---
-st.header("1. Input Your Ingredients")
-st.write("Provide a list of ingredients you are considering, separated by commas or on new lines.")
-
-with st.form(key='ingredient_form'):
-    ingredients_input = st.text_area(
-        "Ingredient List",
-        height=200,
-        placeholder="e.g., Water, Glycerin, Hyaluronic Acid, Cetearyl Alcohol, ...",
-        help="The more ingredients you provide, the better the context for the AI."
-    )
-    submit_button = st.form_submit_button(label='Predict & Generate Formulation ✨')
 
 # --- Main Logic Block ---
 if submit_button and ingredients_input:
     if rf_model is not None:
-        # --- Stage 1: Predictive Model ---
-        with st.spinner("Analyzing ingredients and predicting category..."):
-            input_series = pd.Series([ingredients_input])
-            input_tfidf = tfidf_vectorizer.transform(input_series)
-            prediction_encoded = rf_model.predict(input_tfidf)
-            prediction_label = label_encoder.inverse_transform(prediction_encoded)[0]
-
-        st.header("2. AI Analysis Result")
-        st.success(f"Predicted Product Category: **{prediction_label}**")
-
-        # --- Stage 2: Generative Model ---
-        st.header("3. AI-Generated Concept Formulation")
         
-        prompt = f"""
-        Act as a senior cosmetic chemist. Your task is to create a sample formulation based on a user's ingredient list and a predicted product category.
+        # --- Stage 1: Determine Product Category ---
+        st.header("1. AI Analysis")
+        predicted_label = ""
+        
+        with st.spinner("Analyzing ingredients..."):
+            if product_type == "Auto-detect":
+                input_series = pd.Series([ingredients_input])
+                input_tfidf = tfidf_vectorizer.transform(input_series)
+                prediction_encoded = rf_model.predict(input_tfidf)
+                predicted_label = label_encoder.inverse_transform(prediction_encoded)[0]
+                st.success(f"AI Detected Product Category: **{predicted_label}**")
+            else:
+                predicted_label = product_type
+                st.info(f"User-Selected Product Category: **{predicted_label}**")
 
-        **Product Category:** {prediction_label}
-        **User's Key Ingredients:** {ingredients_input}
+        # --- Stage 2: Advanced Prompt Engineering & Generation ---
+        st.header("2. AI-Generated Concept Formulation")
+        
+        constraints_text = ", ".join(constraints) if constraints else "None"
 
-        **Instructions:**
-        1.  Create a complete, professional-looking formulation table.
-        2.  The table must include columns for: Phase, Ingredient Name (INCI), Percentage (%), and Function.
-        3.  Incorporate the user's key ingredients into the formulation logically.
-        4.  Fill in the rest of the formulation with common, appropriate ingredients to make a complete and stable product.
-        5.  Ensure the total percentage adds up to 100%.
-        6.  The formulation should be divided into logical phases (e.g., Water Phase, Oil Phase, Cool-Down Phase).
-        7.  Provide a brief "Chemist's Note" at the end, explaining the role of the key ingredients and the overall rationale behind the formulation.
+        # A more sophisticated prompt that incorporates all user inputs
+        prompt_v2 = f"""
+        Act as a world-class cosmetic chemist. Your task is to create a sample formulation based on a user's detailed R&D brief.
 
-        Generate the response in Markdown format.
+        **R&D Brief:**
+        - **Product Category:** {predicted_label}
+        - **User's Key Ingredients:** {ingredients_input}
+        - **Target Price Point:** {price_point}
+        - **Formulation Constraints:** {constraints_text}
+
+        **Your Instructions:**
+        1.  **Create a Professional Formulation Table:** The table must be in Markdown format and include columns for: Phase, Ingredient Name (INCI), Percentage (%), and Function.
+        2.  **Incorporate Key Ingredients:** Logically integrate the user's key ingredients into the correct phases.
+        3.  **Complete the Formula:** Fill in the rest of the formulation with common, appropriate ingredients to create a complete and stable product that respects the specified constraints.
+        4.  **Respect Price Point:** Your choice of supporting ingredients (emulsifiers, emollients, actives) should reflect the target price point. For 'Luxury', you can use more exotic or high-tech ingredients. For 'Mass-market', stick to common, cost-effective options.
+        5.  **Adhere to Constraints:** Ensure the final formula is, for example, 'Silicone-free' or 'Paraben-free' if specified.
+        6.  **Total 100%:** The percentages must add up to exactly 100%.
+        7.  **Provide a Chemist's Note:** After the table, write a brief rationale explaining your choices, how you met the constraints, and why the formulation is well-suited for the target product and price point.
         """
 
         try:
             with st.spinner("Generating formulation with Groq's high-speed LLM..."):
-                
-                # --- THIS IS THE NEW HELPER FUNCTION ---
                 def stream_generator(stream):
                     for chunk in stream:
-                        # Extract the text content from each chunk
                         if content := chunk.choices[0].delta.content:
                             yield content
 
                 stream = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[{"role": "user", "content": prompt_v2}],
                     stream=True,
                 )
                 
-                # Pass the helper function to st.write_stream
                 st.write_stream(stream_generator(stream))
 
         except Exception as e:
@@ -121,6 +143,5 @@ if submit_button and ingredients_input:
 
     else:
         st.warning("Cannot perform prediction as model artifacts are not loaded.")
-
-st.markdown("---")
-st.write("Built with ❤️ by a collaborative Human-AI team.")
+else:
+    st.info("Please provide your R&D parameters in the sidebar to begin.")
