@@ -1,5 +1,5 @@
 # ==============================================================================
-# Final Application: Formulation Agent with Advanced Ingredient Analysis
+# Final Application: Formulation Agent with Hybrid Parser (Final Version)
 # ==============================================================================
 
 import streamlit as st
@@ -11,22 +11,19 @@ import re
 import pubchempy as pcp
 
 # --- Page Configuration ---
-st.set_page_config(
-    page_title="Formulation Optimization Agent",
-    page_icon="🧪",
-    layout="wide"
-)
+st.set_page_config(page_title="Formulation Optimization Agent", page_icon="🧪", layout="wide")
 
 # --- Groq API Client Initialization ---
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
-    st.error("Groq API key not found. Please add it to your Streamlit Secrets.")
+    st.error("Groq API key not found...")
     st.stop()
 
 # --- Caching for Models and API Calls ---
 @st.cache_resource
 def load_artifacts():
+    # ... (function is the same as before) ...
     try:
         model = joblib.load('random_forest_model.joblib')
         vectorizer = joblib.load('tfidf_vectorizer.joblib')
@@ -38,58 +35,33 @@ def load_artifacts():
 
 @st.cache_data(show_spinner=False)
 def verify_ingredient_pubchem(ingredient_name):
+    # ... (function is the same as before) ...
     try:
         clean_name = ingredient_name.strip().replace('*', '')
         if not clean_name: return "Empty", "-"
-        
         results = pcp.get_compounds(clean_name, 'name')
-        if results:
-            return "Verified", results[0].molecular_formula
-        else:
-            return "Not Found", "-"
-    except Exception:
-        return "API Error", "-"
+        if results: return "Verified", results[0].molecular_formula
+        else: return "Not Found", "-"
+    except Exception: return "API Error", "-"
 
 @st.cache_data(show_spinner=False)
 def analyze_complex_ingredient(ingredient_name):
-    """
-    Uses an LLM to break down a complex ingredient and verifies its components.
-    """
-    analysis_prompt = f"""
-    As a cosmetic chemist, analyze the ingredient name "{ingredient_name}".
-    Is it a polymer, a commercial blend, a natural extract, or a trade name?
-    Based on your analysis, what are its most likely primary chemical components?
-    
-    Provide your response in the following format ONLY:
-    ANALYSIS: [Your brief analysis, e.g., A common emulsifier blend]
-    COMPONENTS: [List the primary components separated by commas, e.g., Cetearyl Alcohol, Olive Oil Fatty Acids]
-    """
+    # ... (function is the same as before) ...
+    analysis_prompt = f"""As a cosmetic chemist, analyze "{ingredient_name}". Is it a polymer, blend, extract, or trade name? What are its primary chemical components? Respond ONLY in this format:
+ANALYSIS: [Brief analysis]
+COMPONENTS: [Component 1, Component 2]"""
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": analysis_prompt}],
-            stream=False,
-        )
+        response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": analysis_prompt}], stream=False)
         content = response.choices[0].message.content
-        
-        # Parse the LLM's response
         analysis = re.search(r"ANALYSIS: (.*)", content).group(1)
         components_str = re.search(r"COMPONENTS: (.*)", content).group(1)
         components = [c.strip() for c in components_str.split(',')]
-        
-        # Verify each component
         verified_components = []
         for comp in components:
             status, _ = verify_ingredient_pubchem(comp)
-            if status == "Verified":
-                verified_components.append(f"{comp} (Verified)")
-            else:
-                verified_components.append(f"{comp} (Mixture/Polymer)")
-
+            verified_components.append(f"{comp} ({status})")
         return f"{analysis}: " + ", ".join(verified_components), "Complex"
-
-    except Exception:
-        return "Analysis Failed", "Complex"
+    except Exception: return "Analysis Failed", "Complex"
 
 
 # --- Load Artifacts ---
@@ -106,6 +78,7 @@ st.sidebar.markdown("---")
 ingredients_input = st.sidebar.text_area("Enter Key Ingredients", height=200, placeholder="e.g., Water, Glycerin, Hyaluronic Acid...")
 submit_button = st.sidebar.button(label='✨ Generate & Verify Formulation')
 
+
 # --- Main App Interface ---
 st.title("🧪 Formulation Optimization Agent")
 st.write("Your AI partner for creating and validating cosmetic formulations.")
@@ -116,9 +89,9 @@ if 'formulation_text' not in st.session_state:
 
 # --- Main Logic ---
 if submit_button and ingredients_input:
-    # ... (Stage 1 & 2 logic is identical to before) ...
     st.session_state.formulation_text = ""
     st.header("1. AI Analysis")
+    # ... (Prediction logic is the same) ...
     predicted_label = ""
     with st.spinner("Analyzing ingredients..."):
         if product_type == "Auto-detect":
@@ -133,10 +106,21 @@ if submit_button and ingredients_input:
 
     st.header("2. AI-Generated Concept Formulation")
     constraints_text = ", ".join(constraints) if constraints else "None"
-    prompt_v2 = f"""Act as a world-class cosmetic chemist... (Use the strengthened prompt from the previous step)"""
+    
+    # --- SLIGHTLY RELAXED, BUT STILL CLEAR PROMPT ---
+    prompt_v3 = f"""
+    Act as a world-class cosmetic chemist. Create a sample formulation based on the R&D brief below.
+    Your primary output should be a professional formulation table in Markdown format. You may also provide additional context like a Chemist's Note.
+
+    **R&D Brief:**
+    - **Product Category:** {predicted_label}
+    - **User's Key Ingredients:** {ingredients_input}
+    - **Target Price Point:** {price_point}
+    - **Formulation Constraints:** {constraints_text}
+    """
     try:
         with st.spinner("Generating formulation with Groq's high-speed LLM..."):
-            response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt_v2}], stream=False)
+            response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt_v3}], stream=False)
             st.session_state.formulation_text = response.choices[0].message.content
     except Exception as e:
         st.error(f"An error occurred with the Groq API: {e}")
@@ -146,16 +130,30 @@ if st.session_state.formulation_text:
     st.markdown(st.session_state.formulation_text)
     st.markdown("---")
     st.header("3. PubChem Ingredient Verification & Analysis")
-
+    
+    # --- THIS IS THE NEW HYBRID PARSER ---
     ingredients_to_verify = []
-    lines = st.session_state.formulation_text.split('\n')
-    for line in lines:
-        if line.strip().startswith('|') and line.strip().endswith('|'):
-            columns = [col.strip() for col in line.split('|')]
-            if len(columns) > 2:
-                ingredient_name = columns[2]
-                if ingredient_name and "---" not in ingredient_name and "Ingredient Name" not in ingredient_name:
-                    ingredients_to_verify.append(ingredient_name)
+    text = st.session_state.formulation_text
+
+    # Parser 1: Look for Markdown table rows
+    table_ingredients = re.findall(r"\|\s*([^|]+?)\s*\|", text)
+    if table_ingredients:
+        # If a table is found, we assume the second column is the ingredient
+        # This logic is simplified for clarity; a real production system might be more complex
+        rows = [row.strip() for row in text.split('\n') if row.strip().startswith('|')]
+        for row in rows:
+            cols = [col.strip() for col in row.split('|')]
+            if len(cols) > 2:
+                 # Check to filter out headers and separator lines
+                if "---" not in cols[2] and "Ingredient" not in cols[2]:
+                    ingredients_to_verify.append(cols[2])
+
+    # Parser 2: If no table ingredients, look for numbered or bulleted lists
+    if not ingredients_to_verify:
+        # This pattern looks for lines like "1. Ingredient Name (1%):" or "- Ingredient Name:"
+        list_ingredients = re.findall(r"^\s*(?:\d+\.|-)\s*([A-Za-z\s\(\)-]+)", text, re.MULTILINE)
+        if list_ingredients:
+            ingredients_to_verify = [name.strip() for name in list_ingredients]
 
     if ingredients_to_verify:
         verification_data = []
@@ -163,11 +161,9 @@ if st.session_state.formulation_text:
             for ingredient in ingredients_to_verify:
                 status, formula = verify_ingredient_pubchem(ingredient)
                 if status == "Not Found":
-                    # --- THIS IS THE NEW LOGIC ---
-                    # If not found, run the advanced analysis.
                     status, formula = analyze_complex_ingredient(ingredient)
-                
-                verification_data.append({"Ingredient": ingredient, "Status": status, "Details / Formula": formula})
+                if status != "Empty":
+                    verification_data.append({"Ingredient": ingredient, "Status": status, "Details / Formula": formula})
 
         df_verification = pd.DataFrame(verification_data)
 
@@ -178,6 +174,7 @@ if st.session_state.formulation_text:
 
         st.dataframe(df_verification.style.applymap(color_status, subset=['Status']), use_container_width=True)
     else:
-        st.warning("Could not parse ingredients from the generated text.")
+        st.warning("Could not parse a formulation table or list from the generated text.")
+
 else:
     st.info("Please provide your R&D parameters in the sidebar to begin.")
