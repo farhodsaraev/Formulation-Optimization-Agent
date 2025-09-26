@@ -99,13 +99,26 @@ if submit_button and ingredients_input:
     
     st.header("2. AI-Generated Concept Formulation")
     constraints_text = ", ".join(constraints) if constraints else "None"
-    prompt_v2 = f"""Act as a world-class cosmetic chemist... (Use the same detailed prompt as before)
+
+    # A more sophisticated and robust prompt that prioritizes the table format
+    prompt_v2 = f"""
+    Act as a world-class cosmetic chemist. Your primary task is to generate a formulation table in Markdown format. All other text should be secondary to this table.
+
     **R&D Brief:**
     - **Product Category:** {predicted_label}
     - **User's Key Ingredients:** {ingredients_input}
     - **Target Price Point:** {price_point}
     - **Formulation Constraints:** {constraints_text}
-    ... (rest of the prompt is the same)"""
+
+    **Your Instructions:**
+    1.  **MANDATORY: Generate a Formulation Table:** The response MUST contain a complete Markdown table. This is the most critical part of your task. The table must include columns for: Phase, Ingredient Name (INCI), Percentage (%), and Function.
+    2.  **Incorporate Key Ingredients:** Logically integrate the user's key ingredients into the correct phases within the table.
+    3.  **Complete the Formula:** Fill in the rest of the formulation table with common, appropriate ingredients to create a complete and stable product that respects the specified constraints.
+    4.  **Respect Price Point:** Your choice of supporting ingredients in the table should reflect the target price point. 'Luxury' implies more advanced or unique ingredients, while 'Mass-market' implies cost-effective, standard ingredients.
+    5.  **Adhere to Constraints:** The final list of ingredients in the table MUST be, for example, 'Silicone-free' or 'Paraben-free' if specified.
+    6.  **Total 100%:** The percentages in the table must add up to exactly 100%.
+    7.  **Provide a Chemist's Note:** AFTER the mandatory Markdown table, you MAY add a brief "Chemist's Note" to explain your choices and the formulation's rationale.
+    """
 
     try:
         with st.spinner("Generating formulation with Groq's high-speed LLM..."):
@@ -163,3 +176,4 @@ if st.session_state.formulation_text:
         st.warning("Could not parse any ingredients from the generated text to verify.")
 else:
     st.info("Please provide your R&D parameters in the sidebar to begin.")
+
