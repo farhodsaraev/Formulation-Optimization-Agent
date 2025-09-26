@@ -1,5 +1,5 @@
 # ==============================================================================
-# Final Application: Formulation Optimization Agent (Verified Model from Docs)
+# Final Application: Formulation Optimization Agent (Corrected Syntax and Model)
 # ==============================================================================
 
 import streamlit as st
@@ -64,8 +64,9 @@ with st.form(key='ingredient_form'):
     submit_button = st.form_submit_button(label='Predict & Generate Formulation ✨')
 
 # --- Main Logic Block ---
+# --- THIS IS THE CORRECTED LINE ---
 if submit_button and ingredients_input:
-    if rf_model is not a None:
+    if rf_model is not None:
         # --- Stage 1: Predictive Model ---
         with st.spinner("Analyzing ingredients and predicting category..."):
             input_series = pd.Series([ingredients_input])
@@ -100,8 +101,8 @@ if submit_button and ingredients_input:
         try:
             with st.spinner("Generating formulation with Groq's high-speed LLM..."):
                 stream = client.chat.completions.create(
-                    # --- THIS IS THE CORRECTED LINE ---
-                    model="llama-3.1-70b-versatile",
+                    # --- THIS IS THE CORRECTED MODEL NAME ---
+                    model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     stream=True,
                 )
