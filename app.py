@@ -1,5 +1,5 @@
 # ==============================================================================
-# Final Application: Formulation Optimization Agent
+# Final Application: Formulation Optimization Agent (Corrected Model)
 # ==============================================================================
 
 import streamlit as st
@@ -16,7 +16,6 @@ st.set_page_config(
 )
 
 # --- Groq API Client Initialization ---
-# The API key is securely accessed from Streamlit's secrets management.
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
@@ -80,7 +79,6 @@ if submit_button and ingredients_input:
         # --- Stage 2: Generative Model ---
         st.header("3. AI-Generated Concept Formulation")
         
-        # Construct a detailed prompt for the LLM
         prompt = f"""
         Act as a senior cosmetic chemist. Your task is to create a sample formulation based on a user's ingredient list and a predicted product category.
 
@@ -100,10 +98,10 @@ if submit_button and ingredients_input:
         """
 
         try:
-            # Use st.write_stream to display the response as it's generated
             with st.spinner("Generating formulation with Groq's high-speed LLM..."):
                 stream = client.chat.completions.create(
-                    model="llama3-70b-8192", # A powerful and fast model
+                    # --- THIS IS THE CORRECTED LINE ---
+                    model="llama-3.1-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     stream=True,
                 )
