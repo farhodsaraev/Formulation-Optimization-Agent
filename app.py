@@ -1,5 +1,5 @@
 # ==============================================================================
-# Final Application: Formulation Optimization Agent (User-Verified Model)
+# Final Application: Formulation Optimization Agent (Verified Model from Docs)
 # ==============================================================================
 
 import streamlit as st
@@ -65,7 +65,7 @@ with st.form(key='ingredient_form'):
 
 # --- Main Logic Block ---
 if submit_button and ingredients_input:
-    if rf_model is not None:
+    if rf_model is not a None:
         # --- Stage 1: Predictive Model ---
         with st.spinner("Analyzing ingredients and predicting category..."):
             input_series = pd.Series([ingredients_input])
@@ -100,10 +100,8 @@ if submit_button and ingredients_input:
         try:
             with st.spinner("Generating formulation with Groq's high-speed LLM..."):
                 stream = client.chat.completions.create(
-                    # --- VERIFY THIS MODEL NAME ---
-                    # Please check https://console.groq.com/docs/models and use a model from that list.
-                    # 'gemma-7b-it' is a safe and powerful choice.
-                    model="gemma-7b-it",
+                    # --- THIS IS THE CORRECTED LINE ---
+                    model="llama-3.1-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     stream=True,
                 )
