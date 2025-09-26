@@ -1,5 +1,5 @@
 # ==============================================================================
-# Final Application: Formulation Optimization Agent (Corrected Model)
+# Final Application: Formulation Optimization Agent (Corrected Model v2)
 # ==============================================================================
 
 import streamlit as st
@@ -101,7 +101,7 @@ if submit_button and ingredients_input:
             with st.spinner("Generating formulation with Groq's high-speed LLM..."):
                 stream = client.chat.completions.create(
                     # --- THIS IS THE CORRECTED LINE ---
-                    model="llama-3.1-70b-versatile",
+                    model="llama3-8b-8192",
                     messages=[{"role": "user", "content": prompt}],
                     stream=True,
                 )
