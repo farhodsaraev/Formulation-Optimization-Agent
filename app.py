@@ -1,5 +1,5 @@
 # ==============================================================================
-# Final Application: Formulation Optimization Agent (Corrected Syntax and Model)
+# Final Application: Formulation Optimization Agent (Final with Renderer)
 # ==============================================================================
 
 import streamlit as st
@@ -64,7 +64,6 @@ with st.form(key='ingredient_form'):
     submit_button = st.form_submit_button(label='Predict & Generate Formulation ✨')
 
 # --- Main Logic Block ---
-# --- THIS IS THE CORRECTED LINE ---
 if submit_button and ingredients_input:
     if rf_model is not None:
         # --- Stage 1: Predictive Model ---
@@ -100,13 +99,22 @@ if submit_button and ingredients_input:
 
         try:
             with st.spinner("Generating formulation with Groq's high-speed LLM..."):
+                
+                # --- THIS IS THE NEW HELPER FUNCTION ---
+                def stream_generator(stream):
+                    for chunk in stream:
+                        # Extract the text content from each chunk
+                        if content := chunk.choices[0].delta.content:
+                            yield content
+
                 stream = client.chat.completions.create(
-                    # --- THIS IS THE CORRECTED MODEL NAME ---
                     model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     stream=True,
                 )
-                st.write_stream(stream)
+                
+                # Pass the helper function to st.write_stream
+                st.write_stream(stream_generator(stream))
 
         except Exception as e:
             st.error(f"An error occurred with the Groq API: {e}")
