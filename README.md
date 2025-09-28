@@ -45,4 +45,3 @@ This project was built with a focus on performance, scalability, and a zero-doll
 
 ---
 
-This project was built as a collaborative effort between a Senior Principal AI Engineer and their human partner.
